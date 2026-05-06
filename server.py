@@ -11,11 +11,13 @@ import argparse
 import socket
 import threading
 import time
+from collections.abc import Callable
 
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 5000
 CHUNK_SIZE = 64 * 1024
+LogCallback = Callable[[str], None]
 
 
 def get_lan_ip() -> str:
@@ -43,7 +45,7 @@ def read_command(conn: socket.socket) -> str:
     return data.decode("utf-8", errors="replace").strip()
 
 
-def handle_client(conn: socket.socket, address: tuple[str, int]) -> None:
+def handle_client(conn: socket.socket, address: tuple[str, int], log: LogCallback = print) -> None:
     """Handle exactly one test command from a connected client."""
     with conn:
         command_line = read_command(conn)
@@ -71,7 +73,7 @@ def handle_client(conn: socket.socket, address: tuple[str, int]) -> None:
 
             elapsed = max(time.perf_counter() - start, 0.000001)
             conn.sendall(f"RECEIVED {total_bytes} {elapsed:.6f}\n".encode("utf-8"))
-            print(f"Upload test from {address[0]}: received {total_bytes:,} bytes")
+            log(f"Upload test from {address[0]}: received {total_bytes:,} bytes")
             return
 
         if command == "DOWNLOAD_TEST":
@@ -94,7 +96,7 @@ def handle_client(conn: socket.socket, address: tuple[str, int]) -> None:
                     break
                 total_bytes += len(block)
 
-            print(f"Download test to {address[0]}: sent {total_bytes:,} bytes")
+            log(f"Download test to {address[0]}: sent {total_bytes:,} bytes")
             return
 
         if command == "QUIT":
@@ -104,21 +106,57 @@ def handle_client(conn: socket.socket, address: tuple[str, int]) -> None:
         conn.sendall(f"ERROR Unknown command: {command}\n".encode("utf-8"))
 
 
+class SpeedTestServer:
+    """Small stoppable TCP server used by both the CLI and desktop app."""
+
+    def __init__(self, host: str, port: int, log: LogCallback = print) -> None:
+        self.host = host
+        self.port = port
+        self.log = log
+        self._server: socket.socket | None = None
+        self._stop_event = threading.Event()
+
+    def serve_forever(self) -> None:
+        """Start the TCP server and spawn a thread per connected client."""
+        self._stop_event.clear()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+            self._server = server
+            server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server.bind((self.host, self.port))
+            server.listen()
+            server.settimeout(0.5)
+
+            self.log(f"Server running on {get_lan_ip()}:{self.port}")
+            self.log("Waiting for client...")
+
+            while not self._stop_event.is_set():
+                try:
+                    conn, address = server.accept()
+                except socket.timeout:
+                    continue
+                except OSError:
+                    break
+
+                self.log(f"Client connected from {address[0]}:{address[1]}")
+                thread = threading.Thread(target=handle_client, args=(conn, address, self.log), daemon=True)
+                thread.start()
+
+        self._server = None
+        self.log("Server stopped.")
+
+    def stop(self) -> None:
+        """Ask the server loop to stop and close the listening socket."""
+        self._stop_event.set()
+        if self._server is not None:
+            try:
+                self._server.close()
+            except OSError:
+                pass
+
+
 def run_server(host: str, port: int) -> None:
-    """Start the TCP server and spawn a thread per connected client."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind((host, port))
-        server.listen()
-
-        print(f"Server running on {get_lan_ip()}:{port}")
-        print("Waiting for client...")
-
-        while True:
-            conn, address = server.accept()
-            print(f"Client connected from {address[0]}:{address[1]}")
-            thread = threading.Thread(target=handle_client, args=(conn, address), daemon=True)
-            thread.start()
+    """Start the CLI server and keep it running until interrupted."""
+    SpeedTestServer(host, port).serve_forever()
 
 
 def parse_args() -> argparse.Namespace:

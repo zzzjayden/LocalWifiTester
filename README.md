@@ -23,6 +23,38 @@ This project currently uses only the Python standard library at runtime, so ther
 
 ## Run a Test
 
+You can use either the desktop app or the command-line scripts.
+
+### Desktop App
+
+Start the app:
+
+```bash
+python app.py
+```
+
+For a real Wi-Fi test, use two computers:
+
+1. On the first computer, open the `Server` tab and click `Start Server`.
+2. Write down the IP address and port shown in the server log.
+3. On the second computer, open the `Client` tab.
+4. Enter the server IP, port, duration, and a location name.
+5. Click `Run Test`.
+
+The `History` tab reads `results.csv` so you can compare rooms, devices, Wi-Fi bands, or Ethernet later.
+
+For a same-computer app check, start the server in the `Server` tab, then use this in the `Client` tab:
+
+```text
+Server IP: 127.0.0.1
+Port: 5055
+Location: Same Computer
+```
+
+That confirms the app works, but it does not measure real Wi-Fi speed.
+
+### Command Line
+
 Run the server on one device connected to your Wi-Fi or router:
 
 ```bash
@@ -86,10 +118,32 @@ Use location names like `Bedroom`, `Near Router`, `Office`, `2.4 GHz`, `5 GHz`, 
 ## Useful Options
 
 ```bash
+python app.py
 python server.py --host 0.0.0.0 --port 5000
 python client.py --server 192.168.1.25 --port 5000 --duration 5 --location "Near Router"
 python client.py --server 192.168.1.25 --no-save
 ```
+
+## Windows App Notes
+
+The desktop app uses Tkinter, which ships with normal Python installs on Windows. To run it from source:
+
+```powershell
+py -m venv lwst_venv
+lwst_venv\Scripts\activate
+py app.py
+```
+
+To package it later as a single Windows executable:
+
+```powershell
+pip install pyinstaller
+pyinstaller --onefile --windowed app.py
+```
+
+The executable will be created in `dist`. Windows may ask whether to allow network access when running the server; allow private network access for real local Wi-Fi tests.
+
+On some Linux installs, Tkinter is a separate system package. If `python app.py` says `No module named 'tkinter'`, install the OS package for Tkinter, then run the app again.
 
 ## Notes
 

@@ -23,6 +23,10 @@ PING_COUNT = 10
 RESULTS_FILE = Path("results.csv")
 
 
+class ServerResponseError(RuntimeError):
+    """Raised when the target host is reachable but not speaking our protocol."""
+
+
 def bytes_to_mbps(byte_count: int, seconds: float) -> float:
     """Convert bytes transferred over a duration into megabits per second."""
     return (byte_count * 8) / max(seconds, 0.000001) / 1_000_000
@@ -32,7 +36,14 @@ def read_line(sock: socket.socket) -> str:
     """Read a newline-terminated server response."""
     data = bytearray()
     while not data.endswith(b"\n"):
-        part = sock.recv(1)
+        try:
+            part = sock.recv(1)
+        except TimeoutError as exc:
+            raise ServerResponseError(
+                "Connected to the host, but it did not send a Local Wi-Fi Speed Tester response. "
+                "Make sure server.py is running on the same port. On macOS, try using --port 5055 "
+                "because port 5000 can be used by another service."
+            ) from exc
         if not part:
             break
         data.extend(part)
@@ -301,5 +312,7 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
+    except ServerResponseError as exc:
+        print(f"\nConnection problem: {exc}")
     except KeyboardInterrupt:
         print("\nTest cancelled.")

@@ -1,2 +1,4 @@
 date,location,upload_mbps,download_mbps,ping_ms,stability
 2026-05-06T14:53:50,Same Computer,27491.55,27953.41,0.30,Unstable
+2026-05-06T15:09:09,Bedroom,192.92,154.07,5.62,Unstable
+2026-05-06T15:42:59,Bedroom,159.39,81.00,8.85,Unstable
