@@ -8,9 +8,12 @@ measure real local Wi-Fi speed.
 from __future__ import annotations
 
 import csv
+import os
 import queue
 import threading
 from pathlib import Path
+
+os.environ.setdefault("TK_SILENCE_DEPRECATION", "1")
 
 try:
     import tkinter as tk
@@ -61,6 +64,8 @@ class LocalWifiTesterApp(tk.Tk):
         self.duration = tk.StringVar(value="10")
         self.location = tk.StringVar(value="Bedroom")
         self.status_text = tk.StringVar(value="Ready")
+        self.tab_buttons: dict[str, tk.Button] = {}
+        self.tab_frames: dict[str, tk.Frame] = {}
 
         self._build_ui()
         self._poll_queue()
@@ -106,27 +111,63 @@ class LocalWifiTesterApp(tk.Tk):
         style.configure("Treeview.Heading", background=SAGE_DARK, foreground=WHITE, padding=(8, 6))
         style.map("Treeview", background=[("selected", TAUPE)], foreground=[("selected", INK)])
 
-        root = ttk.Frame(self, padding=16)
+        root = tk.Frame(self, bg=CREAM, padx=16, pady=16)
         root.pack(fill="both", expand=True)
 
-        header = ttk.Frame(root)
+        header = tk.Frame(root, bg=CREAM)
         header.pack(fill="x", pady=(0, 12))
-        ttk.Label(header, text="Local Wi-Fi Speed Tester", style="Title.TLabel").pack(side="left")
-        ttk.Label(header, textvariable=self.status_text, style="Status.TLabel").pack(side="right")
+        tk.Label(
+            header,
+            text="Local Wi-Fi Speed Tester",
+            bg=CREAM,
+            fg=SAGE_DARK,
+            font=("TkDefaultFont", 18, "bold"),
+        ).pack(side="left")
+        tk.Label(header, textvariable=self.status_text, bg=CREAM, fg=SAGE_DARK).pack(side="right")
 
-        notebook = ttk.Notebook(root)
-        notebook.pack(fill="both", expand=True)
+        tab_bar = tk.Frame(root, bg=CREAM)
+        tab_bar.pack(fill="x")
+        content = tk.Frame(root, bg=PANEL, padx=16, pady=16)
+        content.pack(fill="both", expand=True)
 
-        server_tab = ttk.Frame(notebook, padding=16, style="Panel.TFrame")
-        client_tab = ttk.Frame(notebook, padding=16, style="Panel.TFrame")
-        history_tab = ttk.Frame(notebook, padding=16, style="Panel.TFrame")
-        notebook.add(server_tab, text="Server")
-        notebook.add(client_tab, text="Client")
-        notebook.add(history_tab, text="History")
+        for tab_name in ("Server", "Client", "History"):
+            button = tk.Button(
+                tab_bar,
+                text=tab_name,
+                command=lambda name=tab_name: self.show_tab(name),
+                bg=TAUPE,
+                fg=WHITE,
+                activebackground=SAGE_DARK,
+                activeforeground=WHITE,
+                relief="flat",
+                padx=18,
+                pady=8,
+                borderwidth=0,
+            )
+            button.pack(side="left", padx=(0, 4))
+            self.tab_buttons[tab_name] = button
+
+            frame = tk.Frame(content, bg=PANEL)
+            frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+            self.tab_frames[tab_name] = frame
+
+        server_tab = self.tab_frames["Server"]
+        client_tab = self.tab_frames["Client"]
+        history_tab = self.tab_frames["History"]
 
         self._build_server_tab(server_tab)
         self._build_client_tab(client_tab)
         self._build_history_tab(history_tab)
+        self.show_tab("Server")
+
+    def show_tab(self, tab_name: str) -> None:
+        """Raise one visible app section and update the tab button colors."""
+        for name, frame in self.tab_frames.items():
+            if name == tab_name:
+                frame.tkraise()
+                self.tab_buttons[name].configure(bg=SAGE_DARK)
+            else:
+                self.tab_buttons[name].configure(bg=TAUPE)
 
     def _build_server_tab(self, parent: ttk.Frame) -> None:
         form = ttk.Frame(parent, style="Panel.TFrame")
