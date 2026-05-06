@@ -127,8 +127,8 @@ class LocalWifiTesterApp(tk.Tk):
 
         tab_bar = tk.Frame(root, bg=CREAM)
         tab_bar.pack(fill="x")
-        content = tk.Frame(root, bg=PANEL, padx=16, pady=16)
-        content.pack(fill="both", expand=True)
+        self.content = tk.Frame(root, bg=PANEL, padx=16, pady=16)
+        self.content.pack(fill="both", expand=True)
 
         for tab_name in ("Server", "Client", "History"):
             button = tk.Button(
@@ -147,8 +147,7 @@ class LocalWifiTesterApp(tk.Tk):
             button.pack(side="left", padx=(0, 4))
             self.tab_buttons[tab_name] = button
 
-            frame = tk.Frame(content, bg=PANEL)
-            frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+            frame = tk.Frame(self.content, bg=PANEL)
             self.tab_frames[tab_name] = frame
 
         server_tab = self.tab_frames["Server"]
@@ -161,12 +160,13 @@ class LocalWifiTesterApp(tk.Tk):
         self.show_tab("Server")
 
     def show_tab(self, tab_name: str) -> None:
-        """Raise one visible app section and update the tab button colors."""
+        """Show one app section and update the tab button colors."""
         for name, frame in self.tab_frames.items():
             if name == tab_name:
-                frame.tkraise()
+                frame.pack(fill="both", expand=True)
                 self.tab_buttons[name].configure(bg=SAGE_DARK)
             else:
+                frame.pack_forget()
                 self.tab_buttons[name].configure(bg=TAUPE)
 
     def _build_server_tab(self, parent: ttk.Frame) -> None:
